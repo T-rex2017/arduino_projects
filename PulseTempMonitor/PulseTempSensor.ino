@@ -1,17 +1,20 @@
 #include <Wire.h>
 #include <DHT.h>
 #include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+
+SoftwareSerial BTserial(2, 3); // RX | TX
 
 #define USE_ARDUINO_INTERRUPTS true
 #include <PulseSensorPlayground.h>
 
-const int PulseWire = 0;
+const int PulseWire = A1;
 const int LED13 = 13;
 int Threshold = 550;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-#define DHTPIN 2
+#define DHTPIN 5
 #define DHTTYPE DHT11
 
 DHT dht(DHTPIN, DHTTYPE);
@@ -42,18 +45,19 @@ byte heartChar[] = {
 void setup() {
 
   Serial.begin(9600);
+  BTserial.begin(9600);
 
   pulseSensor.analogInput(PulseWire);
   pulseSensor.blinkOnPulse(LED13);
   pulseSensor.setThreshold(Threshold);
-  
+
   dht.begin();
-  
+
   lcd.begin();
-  
+
   lcd.createChar(0, tempChar);
   lcd.createChar(1, heartChar);
-  
+
   lcd.setCursor(0, 0);
   lcd.print("Heart Beat And");
   lcd.setCursor(0, 1);
@@ -64,29 +68,26 @@ void setup() {
   lcd.print("Sensing System");
 
   if (pulseSensor.begin()) {
-    Serial.println("We created a pulseSensor Object !");
+    // Serial.println("We created a pulseSensor Object !");
   }
 }
 
-
-
 void loop() {
-  delay(2000);
+
+  delay(10);
+ 
   int myBPM = pulseSensor.getBeatsPerMinute();
+  float myTEMP = dht.readTemperature();
 
-  if (pulseSensor.sawStartOfBeat()) {
-    Serial.println("♥  A HeartBeat Happened ! ");
-    Serial.print("BPM: ");
-    Serial.println(myBPM);
-  }
+  Serial.print("BPM : ");
+  Serial.print(myBPM);
+  Serial.print(" TEMP : ");
+  Serial.println(myTEMP);
 
-  delay(20);
-
-  float t = dht.readTemperature();
-  if (isnan(t)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return;
-  }
+  BTserial.print("BPM : ");
+  BTserial.print(myBPM);
+  BTserial.print(" TEMP : ");
+  BTserial.println(myTEMP);
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -94,15 +95,9 @@ void loop() {
   lcd.write(1);
   lcd.print(" : ");
   lcd.print(myBPM);
-
-  Serial.print("  Temperature: ");
-  Serial.print(t);
-  Serial.println("°C ");
-
   lcd.setCursor(0, 1);
   lcd.print("Temp : ");
-  lcd.print(t);
+  lcd.print(myTEMP);
   lcd.write(0);
   lcd.print("C");
 }
-
