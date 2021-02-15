@@ -1,15 +1,23 @@
 #include "RTClib.h"
 #include <DFPlayerMini_Fast.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
 RTC_DS3231 rtc;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
 int period = 0;
 int myHour;
 int myMinute;
 int previousMinute;
-bool debug = true;
+bool debug = false;
 int soundDelay = 1000;
 int checkTimebtn = 2;
 bool everyMinute = false;
+bool usebtn = true;
+float myTemp;
+float lastmyTemp;
+int lastmyMinute;
 
 int digi[] = {1, 2, 13, 24, 35, 46, 57, 58, 59, 60,
               3, 4, 5, 6, 7, 8, 9,
@@ -20,6 +28,17 @@ int digi[] = {1, 2, 13, 24, 35, 46, 57, 58, 59, 60,
               50, 51, 52, 53, 54, 55, 56, 62, 93
              };
 
+byte tempChar[] = {
+  B00110,
+  B01001,
+  B01001,
+  B01001,
+  B00110,
+  B00000,
+  B00000,
+  B00000
+};
+
 #if !defined(UBRR1H)
 #include <SoftwareSerial.h>
 SoftwareSerial mySerial(10, 11); // RX, TX
@@ -28,6 +47,10 @@ SoftwareSerial mySerial(10, 11); // RX, TX
 DFPlayerMini_Fast myMP3;
 
 void setup() {
+  lcd.begin();
+  lcd.backlight();
+  lcd.createChar(0, tempChar);
+
   Serial.begin(115200);
 #if !defined(UBRR1H)
   mySerial.begin(9600);
@@ -57,23 +80,52 @@ void setup() {
   myMP3.volume(30);
   delay(20);
 
-  if (false) {
-    myMP3.play(62);
-  }
+  //  if (false) {
+  //    myMP3.play(digi[61]);
+  //  }
+
+  lcd.setCursor(0, 0);
+  lcd.print("Arduino Speaking");
+  lcd.setCursor(0, 1);
+  lcd.print("     clock    ");
+  delay(1000);
 }
 
 void loop() {
   DateTime now = rtc.now();
   myHour = now.hour();
   myMinute = now.minute();
+  myTemp = rtc.getTemperature();
 
   if (myHour > 12) {
     myHour = myHour - 12;
     period = 1;
   }
   if (myHour == 0) {
+    myHour = 12;
     period = 0;
   }
+ if (lastmyMinute != myMinute || lastmyTemp != myTemp){
+  lastmyMinute = myMinute;
+  lastmyTemp = myTemp;
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Time : ");
+  if (myHour < 10) lcd.print("0");
+  lcd.print(myHour);
+  lcd.print(":");
+  if (myMinute < 10) lcd.print("0");
+  lcd.print(myMinute);
+  if (period == 0) lcd.print("am");
+  if (period == 1) lcd.print("pm");
+  lcd.setCursor(0, 1);
+  lcd.print("Temp : ");
+  lcd.print(myTemp);
+  lcd.write(0);
+  lcd.print("C");
+ }
+
   if (previousMinute != myMinute && everyMinute == true) {
     previousMinute = myMinute;
     playSoundHour();
@@ -84,7 +136,7 @@ void loop() {
     delay(3000);
   }
 
-  if (digitalRead(checkTimebtn) == LOW) {
+  if (digitalRead(checkTimebtn) == LOW && usebtn == true) {
     playSoundHour();
     delay(500);
     playSoundMinute();
@@ -97,18 +149,24 @@ void loop() {
     Serial.print(myHour);
     Serial.print(" : ");
     Serial.print(myMinute);
+    Serial.print(" : ");
+    Serial.print(period);
     Serial.println();
 
   }
 }
 
+int changesigle( int a){
+  lcd.print("0");
+}
+
 void playSoundPeriod() {
   switch (period) {
+    case 0:
+      myMP3.play(digi[60]);
+      break;
     case 1:
       myMP3.play(digi[61]);
-      break;
-    case 2:
-      myMP3.play(digi[62]);
       break;
   }
 }
